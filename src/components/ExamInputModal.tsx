@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ExamData } from '../types/exam';
 import mammoth from 'mammoth';
 import { authFetch } from '../utils/apiClient';
+import { optimizeImageBase64 } from '../utils/imageCompressor';
 import {
   Upload,
   Image as ImageIcon,
@@ -79,7 +80,7 @@ export const ExamInputModal: React.FC<ExamInputModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
-    const handlePaste = (e: ClipboardEvent) => {
+    const handlePaste = async (e: ClipboardEvent) => {
       const items = e.clipboardData?.items;
       if (!items) return;
 
@@ -87,25 +88,40 @@ export const ExamInputModal: React.FC<ExamInputModalProps> = ({
         if (items[i].type.indexOf('image') !== -1) {
           const file = items[i].getAsFile();
           if (file) {
-            const reader = new FileReader();
-            reader.onload = () => {
-              const result = reader.result as string;
-              const matches = result.match(/^data:(.+);base64,(.+)$/);
-              if (matches) {
-                setUploadedImages((prev) => [
-                  ...prev,
-                  {
-                    mimeType: matches[1],
-                    data: matches[2],
-                    name: `Ảnh dán ${prev.length + 1} (${new Date().toLocaleTimeString('vi-VN')})`,
-                  },
-                ]);
-                setUploadMode('image');
-                setPasteNotice('Đã dán ảnh từ Clipboard thành công!');
-                setTimeout(() => setPasteNotice(null), 3000);
-              }
-            };
-            reader.readAsDataURL(file);
+            try {
+              const opt = await optimizeImageBase64(file);
+              setUploadedImages((prev) => [
+                ...prev,
+                {
+                  mimeType: opt.mimeType,
+                  data: opt.data,
+                  name: `Ảnh dán ${prev.length + 1} (${new Date().toLocaleTimeString('vi-VN')})`,
+                },
+              ]);
+              setUploadMode('image');
+              setPasteNotice('Đã dán ảnh từ Clipboard thành công!');
+              setTimeout(() => setPasteNotice(null), 3000);
+            } catch {
+              const reader = new FileReader();
+              reader.onload = () => {
+                const result = reader.result as string;
+                const matches = result.match(/^data:(.+);base64,(.+)$/);
+                if (matches) {
+                  setUploadedImages((prev) => [
+                    ...prev,
+                    {
+                      mimeType: matches[1],
+                      data: matches[2],
+                      name: `Ảnh dán ${prev.length + 1} (${new Date().toLocaleTimeString('vi-VN')})`,
+                    },
+                  ]);
+                  setUploadMode('image');
+                  setPasteNotice('Đã dán ảnh từ Clipboard thành công!');
+                  setTimeout(() => setPasteNotice(null), 3000);
+                }
+              };
+              reader.readAsDataURL(file);
+            }
           }
         }
       }
@@ -120,28 +136,40 @@ export const ExamInputModal: React.FC<ExamInputModalProps> = ({
   if (!isOpen) return null;
 
   // Xử lý tải ảnh từ file máy tính
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        const matches = result.match(/^data:(.+);base64,(.+)$/);
-        if (matches) {
-          setUploadedImages((prev) => [
-            ...prev,
-            {
-              mimeType: matches[1],
-              data: matches[2],
-              name: file.name,
-            },
-          ]);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+    for (const file of Array.from(files)) {
+      try {
+        const opt = await optimizeImageBase64(file);
+        setUploadedImages((prev) => [
+          ...prev,
+          {
+            mimeType: opt.mimeType,
+            data: opt.data,
+            name: file.name,
+          },
+        ]);
+      } catch {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          const matches = result.match(/^data:(.+);base64,(.+)$/);
+          if (matches) {
+            setUploadedImages((prev) => [
+              ...prev,
+              {
+                mimeType: matches[1],
+                data: matches[2],
+                name: file.name,
+              },
+            ]);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    }
   };
 
   // Nút chủ động dán ảnh từ Clipboard bằng Clipboard API
@@ -156,29 +184,43 @@ export const ExamInputModal: React.FC<ExamInputModalProps> = ({
         const imageType = item.types.find((type) => type.startsWith('image/'));
         if (imageType) {
           const blob = await item.getType(imageType);
-          const reader = new FileReader();
-          reader.onload = () => {
-            const result = reader.result as string;
-            const matches = result.match(/^data:(.+);base64,(.+)$/);
-            if (matches) {
-              setUploadedImages((prev) => [
-                ...prev,
-                {
-                  mimeType: matches[1],
-                  data: matches[2],
-                  name: `Ảnh dán ${prev.length + 1} (${new Date().toLocaleTimeString('vi-VN')})`,
-                },
-              ]);
-              setPasteNotice('Đã dán ảnh từ Clipboard thành công!');
-              setTimeout(() => setPasteNotice(null), 3000);
-            }
-          };
-          reader.readAsDataURL(blob);
+          try {
+            const opt = await optimizeImageBase64(blob);
+            setUploadedImages((prev) => [
+              ...prev,
+              {
+                mimeType: opt.mimeType,
+                data: opt.data,
+                name: `Ảnh dán ${prev.length + 1} (${new Date().toLocaleTimeString('vi-VN')})`,
+              },
+            ]);
+            setPasteNotice('Đã dán ảnh từ Clipboard thành công!');
+            setTimeout(() => setPasteNotice(null), 3000);
+          } catch {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const result = reader.result as string;
+              const matches = result.match(/^data:(.+);base64,(.+)$/);
+              if (matches) {
+                setUploadedImages((prev) => [
+                  ...prev,
+                  {
+                    mimeType: matches[1],
+                    data: matches[2],
+                    name: `Ảnh dán ${prev.length + 1} (${new Date().toLocaleTimeString('vi-VN')})`,
+                  },
+                ]);
+                setPasteNotice('Đã dán ảnh từ Clipboard thành công!');
+                setTimeout(() => setPasteNotice(null), 3000);
+              }
+            };
+            reader.readAsDataURL(blob);
+          }
           return;
         }
       }
       alert('Không tìm thấy ảnh trong Clipboard. Bạn hãy dùng phím tắt Win + Shift + S chụp ảnh đề bài trước rồi thử lại nhé!');
-    } catch (e: any) {
+    } catch {
       alert('Hãy nhấn trực tiếp phím tắt Ctrl + V trên bàn phím để dán ảnh chụp màn hình vào đây!');
     }
   };

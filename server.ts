@@ -1,4 +1,4 @@
-import app from './src/server/app.js';
+import app from './src/server/app';
 import express, { Request, Response } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';

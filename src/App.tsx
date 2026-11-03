@@ -61,13 +61,28 @@ export default function App() {
       const res = await fetch('/api/health');
       if (res.ok) {
         setSystemBanner(null);
-      } else if (res.status === 404 && showNoticeOnFailure) {
-        setSystemBanner({
-          type: 'error',
-          title: 'Thông báo trạng thái hệ thống',
-          message:
-            'Đường dẫn dịch vụ không tìm thấy hoặc đã thay đổi (Mã lỗi 404). Hệ thống đang kiểm tra lại kết nối.',
-        });
+      } else if (showNoticeOnFailure) {
+        if (res.status === 404) {
+          setSystemBanner({
+            type: 'error',
+            title: 'Thông báo trạng thái hệ thống',
+            message:
+              'Đường dẫn dịch vụ không tìm thấy hoặc đã thay đổi (Mã lỗi 404). Hệ thống đang kiểm tra lại kết nối.',
+          });
+        } else if (res.status === 503) {
+          setSystemBanner({
+            type: 'warning',
+            title: 'Thông báo trạng thái hệ thống',
+            message:
+              'Máy chủ dịch vụ tạm thời đang khởi động hoặc quá tải (Mã lỗi 503). Đang kết nối lại...',
+          });
+        } else {
+          setSystemBanner({
+            type: 'warning',
+            title: 'Thông báo trạng thái hệ thống',
+            message: `Máy chủ phản hồi mã ${res.status}. Hệ thống đang kiểm tra lại kết nối.`,
+          });
+        }
       }
     } catch {
       // Mạng tạm thời chưa sẵn sàng

@@ -12,7 +12,7 @@ import {
   createUserByAdmin,
   updateUserByAdmin,
   deleteUserByAdmin,
-} from './authService.js';
+} from './authService';
 
 dotenv.config();
 
@@ -56,12 +56,13 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-// Safe Body parser: if Vercel already parsed the body into an object, do not re-read stream
+// Safe Body parser: Vercel Serverless environment pre-parses req.body.
+// If req.body is already present, do NOT re-read stream as it will hang and cause 503/504 timeout!
 app.use((req: Request, res: Response, next: NextFunction) => {
-  if (req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0) {
+  if (req.body !== undefined && req.body !== null) {
     return next();
   }
-  express.json({ limit: '60mb' })(req, res, (err) => {
+  express.json({ limit: '50mb' })(req, res, (err) => {
     if (err) {
       console.warn('[BodyParser JSON Warning]:', err.message);
     }
@@ -70,7 +71,10 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 app.use((req: Request, res: Response, next: NextFunction) => {
-  express.urlencoded({ limit: '60mb', extended: true })(req, res, (err) => {
+  if (req.body !== undefined && req.body !== null) {
+    return next();
+  }
+  express.urlencoded({ limit: '50mb', extended: true })(req, res, (err) => {
     if (err) {
       console.warn('[BodyParser URL Encoded Warning]:', err.message);
     }
