@@ -60,8 +60,22 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // If req.body is already present, do NOT re-read stream as it will hang and cause 503/504 timeout!
 app.use((req: Request, res: Response, next: NextFunction) => {
   if (req.body !== undefined && req.body !== null) {
+    if (typeof req.body === 'string' && req.body.trim().startsWith('{')) {
+      try {
+        req.body = JSON.parse(req.body);
+      } catch {
+        // Keep as string
+      }
+    }
     return next();
   }
+
+  // If request stream is already ended or consumed, do not hang
+  if (req.complete || (req as any).readableEnded) {
+    req.body = {};
+    return next();
+  }
+
   express.json({ limit: '50mb' })(req, res, (err) => {
     if (err) {
       console.warn('[BodyParser JSON Warning]:', err.message);
@@ -72,6 +86,10 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 app.use((req: Request, res: Response, next: NextFunction) => {
   if (req.body !== undefined && req.body !== null) {
+    return next();
+  }
+  if (req.complete || (req as any).readableEnded) {
+    req.body = {};
     return next();
   }
   express.urlencoded({ limit: '50mb', extended: true })(req, res, (err) => {
@@ -1214,10 +1232,13 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     p.startsWith('/exam') ||
     p.startsWith('/admin')
   ) {
-    return res.status(404).json({
-      success: false,
-      error: `Không tìm thấy API: ${req.method} ${req.originalUrl || req.url}`,
-    });
+    if (!res.headersSent) {
+      res.setHeader('Content-Type', 'application/json');
+      return res.status(404).json({
+        success: false,
+        error: `Không tìm thấy API: ${req.method} ${req.originalUrl || req.url}`,
+      });
+    }
   }
   next();
 });
@@ -1225,10 +1246,13 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // Global error handler for API
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   console.error('[API Server Error]:', err);
-  res.status(500).json({
-    success: false,
-    error: err?.message || 'Lỗi máy chủ khi xử lý yêu cầu.',
-  });
+  if (!res.headersSent) {
+    res.setHeader('Content-Type', 'application/json');
+    res.status(err?.status || 500).json({
+      success: false,
+      error: err?.message || 'Lỗi máy chủ khi xử lý yêu cầu.',
+    });
+  }
 });
 
 export default app;

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ExamQuestion } from '../types/exam';
 import { MathRenderer } from './MathRenderer';
 import { X, Sparkles, Lightbulb, Calculator, AlertTriangle, BookCheck, Loader2 } from 'lucide-react';
-import { authFetch } from '../utils/apiClient';
+import { authFetch, safeResponseJson } from '../utils/apiClient';
 
 interface DeepExplanationModalProps {
   question: ExamQuestion | null;
@@ -36,14 +36,16 @@ export const DeepExplanationModal: React.FC<DeepExplanationModalProps> = ({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question, subject }),
     })
-      .then((res) => res.json())
-      .then((data) => {
+      .then((res) => safeResponseJson(res))
+      .then((parsedRes) => {
         if (!isMounted) return;
-        if (data.success && data.explanation) {
-          setExplanationText(data.explanation);
-          question.deepExplanation = data.explanation;
+        const resData = parsedRes.data;
+        if (parsedRes.ok && resData && (resData.explanation || resData.success)) {
+          const exp = resData.explanation || resData.data;
+          setExplanationText(exp);
+          question.deepExplanation = exp;
         } else {
-          setError(data.error || 'Không thể tạo phân tích chuyên sâu.');
+          setError(parsedRes.error || 'Không thể tạo phân tích chuyên sâu.');
         }
       })
       .catch((err) => {

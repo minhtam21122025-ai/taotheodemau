@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ExamData } from '../types/exam';
 import mammoth from 'mammoth';
-import { authFetch } from '../utils/apiClient';
+import { authFetch, safeResponseJson } from '../utils/apiClient';
 import { optimizeImageBase64 } from '../utils/imageCompressor';
 import {
   Upload,
@@ -347,13 +347,13 @@ export const ExamInputModal: React.FC<ExamInputModalProps> = ({
         1
       );
 
-      const json = await res.json();
-      if (json.success && json.data) {
+      const parsedRes = await safeResponseJson(res);
+      if (parsedRes.ok && parsedRes.data) {
         // Gán chắc chắn tiêu đề theo định dạng: Đề thi môn ... - Lớp ...
         const finalizedData = {
-          ...json.data,
+          ...parsedRes.data,
           title: `Đề thi môn ${effectiveSubject} - ${grade}`,
-          subject: json.data.subject || effectiveSubject,
+          subject: parsedRes.data.subject || effectiveSubject,
           grade: grade,
           examType: examType,
           timeAllowed: timeAllowed,
@@ -361,7 +361,7 @@ export const ExamInputModal: React.FC<ExamInputModalProps> = ({
         onAnalyzeSuccess(finalizedData, variantCount);
         onClose();
       } else {
-        setError(json.error || 'Lỗi khi phân tích đề thi.');
+        setError(parsedRes.error || 'Lỗi khi phân tích đề thi.');
       }
     } catch (err: any) {
       if (err?.name === 'AbortError' || controller.signal.aborted) {

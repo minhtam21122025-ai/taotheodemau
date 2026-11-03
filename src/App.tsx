@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ExamData } from './types/exam';
-import { authFetch } from './utils/apiClient';
+import { authFetch, safeResponseJson } from './utils/apiClient';
 import { Header } from './components/Header';
 import { ExamViewer } from './components/ExamViewer';
 import { MatrixViewer } from './components/MatrixViewer';
@@ -182,17 +182,17 @@ export default function App() {
               0
             );
 
-            const json = await res.json();
+            const parsedRes = await safeResponseJson(res);
             if (isCancelledRef.current) break;
 
-            if (json.success && json.data) {
-              json.data.examCode = `MÃ ĐỀ: ${codeNum}`;
-              json.data.title = `Đề thi môn ${newExam.subject || 'Toán'} - ${newExam.grade || 'Lớp 12'}`;
-              generatedList.push(json.data);
+            if (parsedRes.ok && parsedRes.data) {
+              parsedRes.data.examCode = `MÃ ĐỀ: ${codeNum}`;
+              parsedRes.data.title = `Đề thi môn ${newExam.subject || 'Toán'} - ${newExam.grade || 'Lớp 12'}`;
+              generatedList.push(parsedRes.data);
               setEquivalentExams([...generatedList]);
               success = true;
             } else {
-              console.warn(`Lỗi khi tạo đề số ${i} (lần thử ${attempt}):`, json.error);
+              console.warn(`Lỗi khi tạo đề số ${i} (lần thử ${attempt}):`, parsedRes.error);
               if (attempt < maxVariantAttempts && !isCancelledRef.current) {
                 setBatchProgress(`Đang thử lại Đề ${codeNum}...`);
                 await new Promise((r) => setTimeout(r, 400));
@@ -282,19 +282,27 @@ export default function App() {
         1
       );
 
-      const json = await res.json();
+      const parsedRes = await safeResponseJson(res);
       if (isCancelledRef.current) return;
 
-      if (json.success && json.data) {
-        json.data.examCode = `MÃ ĐỀ: ${nextCode}`;
-        json.data.title = `Đề thi môn ${originalExam.subject || 'Toán'} - ${originalExam.grade || 'Lớp 12'}`;
-        handleGenerateSuccess(json.data);
+      if (parsedRes.ok && parsedRes.data) {
+        parsedRes.data.examCode = `MÃ ĐỀ: ${nextCode}`;
+        parsedRes.data.title = `Đề thi môn ${originalExam.subject || 'Toán'} - ${originalExam.grade || 'Lớp 12'}`;
+        handleGenerateSuccess(parsedRes.data);
       } else {
-        alert(json.error || `Lỗi khi tạo Đề ${nextCode}. Vui lòng thử lại.`);
+        setSystemBanner({
+          type: 'error',
+          title: `Lỗi tạo Đề ${nextCode}`,
+          message: parsedRes.error || 'Quá trình sinh đề thi gặp sự cố. Vui lòng thử lại.',
+        });
       }
     } catch (e: any) {
       if (!isCancelledRef.current && e?.name !== 'AbortError') {
-        alert(`Lỗi kết nối khi tạo Đề ${nextCode}: ${e?.message || 'Vui lòng thử lại.'}`);
+        setSystemBanner({
+          type: 'error',
+          title: `Lỗi kết nối khi tạo Đề ${nextCode}`,
+          message: e?.message || 'Không thể kết nối đến máy chủ. Vui lòng thử lại.',
+        });
       }
     } finally {
       abortControllerRef.current = null;

@@ -19,7 +19,7 @@ import {
   CalendarPlus,
 } from 'lucide-react';
 import { UserAccount, formatExpiryDisplay, getRemainingDays, isAccountExpired } from '../types/auth';
-import { authFetch } from '../utils/apiClient';
+import { authFetch, safeResponseJson } from '../utils/apiClient';
 
 interface UserManagementModalProps {
   isOpen: boolean;
@@ -64,11 +64,12 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
     setLoading(true);
     try {
       const res = await authFetch('/api/admin/users');
-      const data = await res.json();
-      if (data.success && Array.isArray(data.users)) {
+      const parsedRes = await safeResponseJson(res);
+      const data = parsedRes.data;
+      if (parsedRes.ok && data && Array.isArray(data.users)) {
         setUsers(data.users);
       } else {
-        setNotice({ type: 'error', message: data.error || 'Không thể tải danh sách tài khoản.' });
+        setNotice({ type: 'error', message: parsedRes.error || data?.error || 'Không thể tải danh sách tài khoản.' });
       }
     } catch {
       setNotice({ type: 'error', message: 'Lỗi kết nối khi tải danh sách người dùng.' });
@@ -107,8 +108,9 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
         }),
       });
 
-      const data = await res.json();
-      if (res.ok && data.success) {
+      const parsedRes = await safeResponseJson(res);
+      const data = parsedRes.data;
+      if (parsedRes.ok && data?.success) {
         setNotice({
           type: 'success',
           message: `Tạo tài khoản "${data.user.username}" thành công! Hạn dùng đến 24h00 ngày ${newExpiryDate.split('-').reverse().join('/')}.`,
@@ -119,7 +121,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
         setNewNote('');
         fetchUsers();
       } else {
-        setNotice({ type: 'error', message: data.error || 'Tạo tài khoản thất bại.' });
+        setNotice({ type: 'error', message: parsedRes.error || data?.error || 'Tạo tài khoản thất bại.' });
       }
     } catch {
       setNotice({ type: 'error', message: 'Lỗi kết nối máy chủ.' });
@@ -143,15 +145,16 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
         }),
       });
 
-      const data = await res.json();
-      if (data.success) {
+      const parsedRes = await safeResponseJson(res);
+      const data = parsedRes.data;
+      if (parsedRes.ok && data?.success) {
         setNotice({
           type: 'success',
           message: `Đã ${!user.isActive ? 'mở khóa' : 'tạm khóa'} tài khoản "${user.username}".`,
         });
         fetchUsers();
       } else {
-        setNotice({ type: 'error', message: data.error || 'Cập nhật trạng thái thất bại.' });
+        setNotice({ type: 'error', message: parsedRes.error || data?.error || 'Cập nhật trạng thái thất bại.' });
       }
     } catch {
       setNotice({ type: 'error', message: 'Lỗi kết nối khi cập nhật trạng thái.' });
@@ -173,8 +176,9 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
       const res = await authFetch(`/api/admin/users/${confirmDeleteUser.id}`, {
         method: 'DELETE',
       });
-      const data = await res.json();
-      if (data.success) {
+      const parsedRes = await safeResponseJson(res);
+      const data = parsedRes.data;
+      if (parsedRes.ok && data?.success) {
         setNotice({
           type: 'success',
           message: `Đã xóa vĩnh viễn tài khoản "${confirmDeleteUser.username}" khỏi hệ thống thành công.`,
@@ -182,7 +186,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
         setConfirmDeleteUser(null);
         fetchUsers();
       } else {
-        setNotice({ type: 'error', message: data.error || 'Xóa tài khoản thất bại.' });
+        setNotice({ type: 'error', message: parsedRes.error || data?.error || 'Xóa tài khoản thất bại.' });
       }
     } catch {
       setNotice({ type: 'error', message: 'Lỗi kết nối khi xóa tài khoản.' });
@@ -215,8 +219,9 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
-      if (data.success) {
+      const parsedRes = await safeResponseJson(res);
+      const data = parsedRes.data;
+      if (parsedRes.ok && data?.success) {
         setNotice({
           type: 'success',
           message: `Đã cập nhật tài khoản "${editingUser.username}" thành công.`,
@@ -224,7 +229,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
         setEditingUser(null);
         fetchUsers();
       } else {
-        setNotice({ type: 'error', message: data.error || 'Lỗi cập nhật tài khoản.' });
+        setNotice({ type: 'error', message: parsedRes.error || data?.error || 'Lỗi cập nhật tài khoản.' });
       }
     } catch {
       setNotice({ type: 'error', message: 'Lỗi kết nối máy chủ.' });

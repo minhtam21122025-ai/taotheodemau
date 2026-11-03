@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { ExamData, ExamVariantConfig } from '../types/exam';
 import { Sparkles, Sliders, X, Check, Loader2, AlertCircle, Award, XCircle } from 'lucide-react';
-import { authFetch } from '../utils/apiClient';
+import { authFetch, safeResponseJson } from '../utils/apiClient';
 
 interface VariantGeneratorModalProps {
   isOpen: boolean;
@@ -88,14 +88,14 @@ export const VariantGeneratorModal: React.FC<VariantGeneratorModalProps> = ({
         1
       );
 
-      const json = await res.json();
-      if (json.success && json.data) {
-        json.data.examCode = `MÃ ĐỀ: ${100 + variantIndex}`;
-        json.data.title = `Đề thi môn ${originalExam.subject || 'Toán'} - ${originalExam.grade || 'Lớp 12'}`;
-        onGenerateSuccess(json.data);
+      const parsedRes = await safeResponseJson(res);
+      if (parsedRes.ok && parsedRes.data) {
+        parsedRes.data.examCode = `MÃ ĐỀ: ${100 + variantIndex}`;
+        parsedRes.data.title = `Đề thi môn ${originalExam.subject || 'Toán'} - ${originalExam.grade || 'Lớp 12'}`;
+        onGenerateSuccess(parsedRes.data);
         onClose();
       } else {
-        setError(json.error || 'Lỗi khi sinh đề thi tương đương.');
+        setError(parsedRes.error || 'Lỗi khi sinh đề thi tương đương.');
       }
     } catch (err: any) {
       if (err?.name === 'AbortError' || controller.signal.aborted) {
